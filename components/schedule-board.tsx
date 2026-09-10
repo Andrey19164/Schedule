@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin, Search, Sparkles, UserRound } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Clock3, MapPin, Search, Sparkles, UserRound } from 'lucide-react'
 
 type Lesson = {
   subject: string
@@ -68,6 +68,7 @@ export function ScheduleBoard({ weeks }: { weeks: WeekSchedule[] }) {
   const [query, setQuery] = useState('')
   const [now, setNow] = useState<Date | null>(null)
   const [showWeek, setShowWeek] = useState(false)
+  const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({})
   const week = weeks[weekIndex]
 
   useEffect(() => {
@@ -116,15 +117,22 @@ export function ScheduleBoard({ weeks }: { weeks: WeekSchedule[] }) {
     }))
   }, [query, week])
 
-  const renderDay = (day: DaySchedule, dayIndex: number) => {
+  const renderDay = (day: DaySchedule, dayIndex: number, collapsible = false) => {
     const filled = day.lessons.filter(Boolean).length
     const isToday = isViewingCurrentWeek && dayIndex === currentDayIndex
-    return <article key={day.day} className={`overflow-hidden rounded-2xl border bg-card shadow-sm ${isToday ? 'border-primary/50 ring-1 ring-primary/20' : 'border-border'}`}>
-      <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-4">
-        <div><h2 className="text-lg font-bold">{day.day}</h2><p className="mt-0.5 text-xs text-muted-foreground">{filled ? `${filled} ${lessonWord(filled)}` : 'Свободный день'}</p></div>
+    const expanded = !collapsible || Boolean(expandedDays[day.day])
+    const header = <>
+      <div><h2 className="text-lg font-bold">{day.day}</h2><p className="mt-0.5 text-xs text-muted-foreground">{filled ? `${filled} ${lessonWord(filled)}` : 'Свободный день'}</p></div>
+      <div className="flex items-center gap-2">
         <span className={`text-xs font-semibold uppercase tracking-wider ${isToday ? 'text-primary' : 'text-muted-foreground'}`}>{isToday ? 'Сегодня' : '2 п-г'}</span>
+        {collapsible && <ChevronDown size={18} className={`shrink-0 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} />}
       </div>
-      <div className="divide-y divide-border">
+    </>
+    return <article key={day.day} className={`overflow-hidden rounded-2xl border bg-card shadow-sm ${isToday ? 'border-primary/50 ring-1 ring-primary/20' : 'border-border'}`}>
+      {collapsible
+        ? <button type="button" aria-expanded={expanded} onClick={() => setExpandedDays((current) => ({ ...current, [day.day]: !current[day.day] }))} className={`flex w-full items-center justify-between bg-muted/40 px-5 py-4 text-left ${expanded ? 'border-b border-border' : ''}`}>{header}</button>
+        : <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-4">{header}</div>}
+      {expanded && <div className="divide-y divide-border">
         {day.lessons.map((lesson, index) => {
           const isActive = isToday && index === activeLessonIndex && Boolean(lesson)
           const nextLesson = day.lessons[index + 1]
@@ -136,15 +144,15 @@ export function ScheduleBoard({ weeks }: { weeks: WeekSchedule[] }) {
             {lesson && nextLesson && <div className="flex items-center gap-3 bg-muted/20 px-4 py-2 text-xs text-muted-foreground"><span className="w-14 shrink-0 text-center"><span className="mx-auto block h-px w-6 bg-border" /></span><Clock3 size={12} /><span>Перерыв · {index === 2 ? '30 минут' : '10 минут'}</span></div>}
           </div>
         })}
-      </div>
+      </div>}
     </article>
   }
 
   return <main className="min-h-screen bg-background text-foreground"><div className="mx-auto max-w-[1500px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
     <header className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between"><div><div className="mb-4 flex items-center gap-2 text-sm font-semibold text-primary"><span className="grid size-8 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm"><CalendarDays size={17} /></span>Учебный план</div><h1 className="max-w-2xl text-balance text-4xl font-bold tracking-tight sm:text-5xl">Расписание занятий</h1><p className="mt-3 max-w-xl text-pretty text-base leading-6 text-muted-foreground">Группа 2141 · 2-я подгруппа</p></div><label className="relative block min-w-64"><Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><span className="sr-only">Поиск по расписанию</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Найти предмет или аудиторию" className="h-11 w-full rounded-xl border border-border bg-card pl-10 pr-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15" /></label></header>
-    <section className="mb-6 flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5"><div className="flex items-center gap-3"><div className="grid size-11 place-items-center rounded-xl bg-accent text-primary"><Sparkles size={19} /></div><div><p className="text-sm font-semibold">{week?.label} неделя</p><p className="text-sm text-muted-foreground">{showWeek ? 'Полное расписание недели' : now ? `Сегодня · ${currentDay?.day ?? ''}` : 'Расписание 2-й подгруппы'}</p></div></div><div className="flex flex-nowrap items-center gap-1.5"><button type="button" onClick={() => setShowWeek(false)} className={`h-8 shrink-0 rounded-lg px-2.5 text-xs font-semibold transition ${!showWeek ? 'bg-primary text-primary-foreground' : 'border border-border hover:bg-muted'}`}>Сегодня</button><button type="button" onClick={() => setShowWeek(true)} className={`h-8 shrink-0 rounded-lg px-2.5 text-xs font-semibold transition ${showWeek ? 'bg-primary text-primary-foreground' : 'border border-border hover:bg-muted'}`}>Вся неделя</button><button type="button" aria-label="Предыдущая неделя" onClick={() => { setShowWeek(true); setWeekIndex((weekIndex + weeks.length - 1) % weeks.length) }} className="grid size-8 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"><ChevronLeft size={16} /></button><button type="button" onClick={() => { setShowWeek(false); setWeekIndex(currentWeekIndex) }} className="hidden h-8 rounded-lg border border-border px-2.5 text-xs font-semibold transition hover:bg-muted sm:block">Сейчас</button><button type="button" aria-label="Следующая неделя" onClick={() => { setShowWeek(true); setWeekIndex((weekIndex + 1) % weeks.length) }} className="grid size-8 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"><ChevronRight size={16} /></button></div></section>
+    <section className="mb-6 flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5"><div className="flex items-center gap-3"><div className="grid size-11 place-items-center rounded-xl bg-accent text-primary"><Sparkles size={19} /></div><div><p className="text-sm font-semibold">{week?.label} неделя</p><p className="text-sm text-muted-foreground">{showWeek ? 'Полное расписание недели' : now ? `Сегодня · ${currentDay?.day ?? ''}` : 'Расписание 2-й подгруппы'}</p></div></div><div className="flex w-full flex-nowrap items-center gap-1.5"><button type="button" onClick={() => setShowWeek(false)} className={`h-8 min-w-0 flex-1 rounded-lg px-2.5 text-xs font-semibold transition ${!showWeek ? 'bg-primary text-primary-foreground' : 'border border-border hover:bg-muted'}`}>Сегодня</button><button type="button" onClick={() => { setShowWeek(true); setExpandedDays({}) }} className={`h-8 min-w-0 flex-1 rounded-lg px-2.5 text-xs font-semibold transition ${showWeek ? 'bg-primary text-primary-foreground' : 'border border-border hover:bg-muted'}`}>Вся неделя</button><button type="button" aria-label="Предыдущая неделя" onClick={() => { setShowWeek(true); setWeekIndex((weekIndex + weeks.length - 1) % weeks.length); setExpandedDays({}) }} className="grid size-9 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"><ChevronLeft size={18} /></button><button type="button" onClick={() => { setShowWeek(false); setWeekIndex(currentWeekIndex) }} className="hidden h-8 rounded-lg border border-border px-2.5 text-xs font-semibold transition hover:bg-muted sm:block">Сейчас</button><button type="button" aria-label="Следующая неделя" onClick={() => { setShowWeek(true); setWeekIndex((weekIndex + 1) % weeks.length); setExpandedDays({}) }} className="grid size-9 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"><ChevronRight size={18} /></button></div></section>
     {!showWeek && <section className={`mb-5 flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between ${activeLesson && isViewingCurrentWeek ? 'border-primary/40 bg-primary/10' : 'border-border bg-card'}`} aria-live="polite"><div className="flex items-center gap-3"><span className={`grid size-10 place-items-center rounded-xl ${activeLesson && isViewingCurrentWeek ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}><Clock3 size={18} /></span><div><p className="text-sm font-semibold">{statusText}</p>{activeLesson && <p className="mt-1 text-xs text-muted-foreground">{activeLesson.teacher} · {activeLesson.room}</p>}<p className="text-xs text-muted-foreground">{now ? now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '--:--'} · 2-я подгруппа</p></div></div>{activeLesson && isViewingCurrentWeek && secondsUntilEnd !== null ? <div className="text-left sm:text-right"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">До конца пары</p><p className="text-lg font-bold tabular-nums">{formatCountdown(secondsUntilEnd)}</p></div> : <p className="text-sm text-muted-foreground">{statusText === 'На сегодня занятий нет' ? 'До завтра' : 'Следующая пара по расписанию'}</p>}</section>}
-    {showWeek ? <><div className="mb-5 flex items-center justify-between text-sm text-muted-foreground"><span>{filteredDays.reduce((total, day) => total + day.lessons.filter(Boolean).length, 0)} занятий</span><span className="hidden sm:block">Выделена пара, которая идет сейчас</span></div><section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">{filteredDays.map((day, index) => renderDay(day, index))}</section></> : <section className="grid gap-4 md:grid-cols-2">{currentDay ? renderDay(currentDay, currentDayIndex) : <div className="rounded-2xl border border-border bg-card p-6 text-muted-foreground">Сегодня расписания нет.</div>}</section>}
+    {showWeek ? <><div className="mb-5 flex items-center justify-between text-sm text-muted-foreground"><span>{filteredDays.reduce((total, day) => total + day.lessons.filter(Boolean).length, 0)} занятий</span><span className="hidden sm:block">Нажмите на день, чтобы раскрыть расписание</span></div><section className="grid gap-3">{filteredDays.map((day, index) => renderDay(day, index, true))}</section></> : <section className="grid gap-4 md:grid-cols-2">{currentDay ? renderDay(currentDay, currentDayIndex) : <div className="rounded-2xl border border-border bg-card p-6 text-muted-foreground">Сегодня расписания нет.</div>}</section>}
   </div></main>
 }
 
